@@ -224,6 +224,15 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
 
   }, [mode, config, getNoiseBuffer, stopSound]);
 
+  // --- EXPOSED CONTROL ---
+  const initializeAudio = useCallback(async () => {
+    const ctx = audioCtxRef.current;
+    if (ctx && ctx.state === 'suspended') {
+      console.log('[AudioEngine] Manually resuming audio context');
+      await ctx.resume();
+    }
+  }, []);
+
   // --- TRIGGER ---
   useEffect(() => {
     if (isPlaying) {
@@ -233,5 +242,5 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
     }
   }, [isPlaying, startSound, stopSound]);
 
-  return { isReady };
+  return { isReady, initializeAudio };
 };

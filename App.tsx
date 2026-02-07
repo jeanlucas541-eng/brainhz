@@ -69,7 +69,7 @@ const App: React.FC = () => {
   const config = SESSION_CONFIGS[activeMode];
 
   // Audio Engine Hook (Always active regardless of view, but logic handles play state)
-  useAudioEngine(activeMode, config, isPlaying, volume);
+  const { initializeAudio } = useAudioEngine(activeMode, config, isPlaying, volume);
 
 
 
@@ -163,6 +163,9 @@ const App: React.FC = () => {
   const startConfirmedSession = async () => {
     if (!pendingSession) return;
 
+    // Mobile Autoplay Fix: Resume AudioContext immediately on user interaction
+    await initializeAudio();
+
     const { mode, duration } = pendingSession;
 
     // 1. Set State
@@ -204,8 +207,14 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (activeMode === SessionMode.IDLE) return;
+
+    // Mobile Autoplay Fix
+    if (!isPlaying) {
+      await initializeAudio();
+    }
+
     setIsPlaying(!isPlaying);
   };
 
