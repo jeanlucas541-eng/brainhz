@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI, Chat, GenerateContentResponse, FunctionDeclaration, Type, Tool } from "@google/genai";
+import { GoogleGenerativeAI, ChatSession, GenerateContentResult } from "@google/generative-ai";
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle, MessageSquarePlus, Save } from 'lucide-react';
 import { SESSION_CONFIGS, SessionMode } from '../types';
 import { createCustomProtocol, CustomProtocol } from '../services/protocolService';
@@ -37,7 +37,7 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const chatSessionRef = useRef<Chat | null>(null);
+  const chatSessionRef = useRef<ChatSession | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -48,119 +48,37 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
     scrollToBottom();
   }, [messages]);
 
-  // Define Function Tool for Gemini - Activate existing protocol
-  const activateProtocolTool: FunctionDeclaration = {
-    name: "activate_protocol",
-    description: "Ativa um protocolo existente e redireciona o usuario para a tela de protocolos. Use isso quando o usuario pedir uma recomendacao rapida.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        mode: {
-          type: Type.STRING,
-          enum: Object.values(SessionMode).filter(m => m !== SessionMode.IDLE),
-          description: "O modo de sessao a ser ativado (GAMMA, FOCUS, STUDY, CREATIVITY, SLEEP, RESTORE)."
-        },
-        explanation: {
-          type: Type.STRING,
-          description: "Uma explicacao curta e motivadora de por que este protocolo foi escolhido para o usuario."
-        }
-      },
-      required: ["mode", "explanation"]
-    }
-  };
 
-  // Define Function Tool for Gemini - Create custom protocol
-  const createCustomProtocolTool: FunctionDeclaration = {
-    name: "create_custom_protocol",
-    description: "Cria um protocolo personalizado e salva no perfil do usuario. Use isso quando o usuario pedir para CRIAR, PERSONALIZAR ou MONTAR um protocolo especifico para suas necessidades.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        name: {
-          type: Type.STRING,
-          description: "Nome curto e descritivo para o protocolo (ex: 'Foco para Estudos', 'Relaxamento Noturno')"
-        },
-        description: {
-          type: Type.STRING,
-          description: "Descricao do proposito do protocolo"
-        },
-        base_mode: {
-          type: Type.STRING,
-          enum: Object.values(SessionMode).filter(m => m !== SessionMode.IDLE),
-          description: "O modo base para o protocolo (GAMMA, FOCUS, STUDY, CREATIVITY, SLEEP, RESTORE)"
-        },
-        frequency_hz: {
-          type: Type.NUMBER,
-          description: "Frequencia de arrastamento em Hz (ex: 10 para Alpha, 40 para Gamma, 4 para Theta)"
-        },
-        duration_minutes: {
-          type: Type.NUMBER,
-          description: "Duracao recomendada em minutos (padrao: 20)"
-        },
-        noise_color: {
-          type: Type.STRING,
-          enum: ["Pink", "White", "Brown"],
-          description: "Cor do ruido de fundo (Pink para suavidade, Brown para profundidade, White para neutralidade)"
-        },
-        explanation: {
-          type: Type.STRING,
-          description: "Explicacao de por que este protocolo foi criado assim para o usuario"
-        }
-      },
-      required: ["name", "base_mode", "frequency_hz", "explanation"]
-    }
-  };
 
   // Initialize Chat with Context
   useEffect(() => {
-    const initChat = () => {
+    const initChat = async () => {
       const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-      if (!apiKey) {
-        console.error("API Key não encontrada. Verifique VITE_GOOGLE_API_KEY.");
-        return;
-      }
+      if (!apiKey) return;
 
-      const ai = new GoogleGenAI({ apiKey });
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-pro", // Switch to standard model
+        systemInstruction: `
+          Você é o 'BrainHz Specialist', um assistente de IA especialista em neurociência e nos protocolos da plataforma BrainHz.
+          
+          SUA BASE DE CONHECIMENTO (CONTEXTO ESTRITO):
+          ${JSON.stringify(SESSION_CONFIGS, null, 2)}
 
-      const contextData = JSON.stringify(SESSION_CONFIGS, null, 2);
+          SEU OBJETIVO:
+          1. Explicar a ciência por trás de cada modo (Gamma, Beta, Alpha, Theta, Delta).
+          2. Recomendar protocolos baseados no que o usuário diz.
+          3. Ser clínico, preciso, porém acessível.
+          
+          IMPORTANTE:
+          Se o usuário pedir para "criar" ou "ativar" um protocolo, explique que você pode sugerir a configuração ideal (Hz, Cor, Tempo), mas ele deve clicar manualmente no card por enquanto.
+        `
+      });
 
-      chatSessionRef.current = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-          tools: [{ functionDeclarations: [activateProtocolTool, createCustomProtocolTool] }],
-          systemInstruction: `
-            Voce e o 'BrainHz Specialist', um assistente de IA especialista em neurociencia e nos protocolos da plataforma BrainHz.
-            
-            SUA BASE DE CONHECIMENTO (CONTEXTO ESTRITO):
-            ${contextData}
-
-            VOCE TEM DUAS FERRAMENTAS:
-
-            1. **activate_protocol**: Use para ATIVAR um protocolo existente rapidamente.
-               - Use quando o usuario pedir recomendacao rapida ("estou cansado", "preciso focar agora")
-            
-            2. **create_custom_protocol**: Use para CRIAR e SALVAR um protocolo personalizado.
-               - Use quando o usuario pedir para CRIAR, PERSONALIZAR, MONTAR um protocolo
-               - Use quando o usuario descrever uma rotina especifica
-               - Defina a frequencia Hz baseado no objetivo:
-                 * Gamma (30-100 Hz): Insight, cognicao de pico
-                 * Beta (13-30 Hz): Foco ativo, alerta
-                 * Alpha (8-13 Hz): Relaxamento, criatividade
-                 * Theta (4-8 Hz): Meditacao, sono leve, aprendizado
-                 * Delta (0.5-4 Hz): Sono profundo, recuperacao
-               - Escolha noise_color apropriado: Brown para profundidade, Pink para suavidade
-
-            SUAS FUNCOES:
-            1. Explicar a ciencia por tras de cada modo.
-            2. Criar planos personalizados usando as ferramentas.
-            
-            Ao usar as ferramentas, a explicacao deve ser em segunda pessoa ("Preparei este protocolo para voce...").
-
-            TOM DE VOZ:
-            Clinico, preciso, porem acessivel.
-            
-            Fale sempre em Portugues.
-          `,
+      chatSessionRef.current = model.startChat({
+        history: [],
+        generationConfig: {
+          maxOutputTokens: 500,
         },
       });
     };
@@ -173,106 +91,46 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
   const handleSend = async (textOverride?: string) => {
     const textToSend = typeof textOverride === 'string' ? textOverride : input;
 
-    if (!textToSend.trim() || !chatSessionRef.current) return;
+    if (!textToSend.trim()) return;
 
+    // Optimistic UI Update
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text: textToSend, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await chatSessionRef.current.sendMessageStream({ message: textToSend });
-
-      let fullText = '';
-      const modelMsgId = (Date.now() + 1).toString();
-      let hasAddedMsg = false;
-
-      for await (const chunk of response) {
-        const c = chunk as GenerateContentResponse;
-
-        // Handle Function Calls
-        if (c.candidates && c.candidates[0].content.parts) {
-          for (const part of c.candidates[0].content.parts) {
-            if (part.functionCall) {
-              const fc = part.functionCall;
-
-              // Handle activate_protocol
-              if (fc.name === 'activate_protocol' && onRecommend) {
-                const args = fc.args as any;
-                // Execute Action
-                onRecommend(args.mode as SessionMode, args.explanation);
-
-                setMessages(prev => [...prev, {
-                  id: Date.now().toString(),
-                  role: 'model',
-                  text: `Ativando protocolo **${args.mode}** conforme seu plano personalizado...`,
-                  timestamp: Date.now()
-                }]);
-
-                setIsLoading(false);
-                return; // Stop processing stream if redirected
-              }
-
-              // Handle create_custom_protocol
-              if (fc.name === 'create_custom_protocol' && user) {
-                const args = fc.args as any;
-
-                // Save to Supabase
-                const newProtocol = await createCustomProtocol({
-                  userId: user.id,
-                  name: args.name,
-                  description: args.description,
-                  baseMode: args.base_mode as SessionMode,
-                  frequencyHz: args.frequency_hz,
-                  durationMinutes: args.duration_minutes || 20,
-                  noiseColor: args.noise_color || 'Brown',
-                  aiExplanation: args.explanation
-                });
-
-                if (newProtocol) {
-                  // Notify parent component
-                  if (onProtocolCreated) {
-                    onProtocolCreated(newProtocol);
-                  }
-
-                  setMessages(prev => [...prev, {
-                    id: Date.now().toString(),
-                    role: 'model',
-                    text: `Protocolo **"${args.name}"** criado e salvo com sucesso!\n\n**Configuracao:**\n- Modo Base: ${args.base_mode}\n- Frequencia: ${args.frequency_hz} Hz\n- Duracao: ${args.duration_minutes || 20} minutos\n- Ruido: ${args.noise_color || 'Brown'}\n\n${args.explanation}\n\nVoce pode encontrar este protocolo na aba **Protocolos > Meus Protocolos**.`,
-                    timestamp: Date.now()
-                  }]);
-                } else {
-                  setMessages(prev => [...prev, {
-                    id: Date.now().toString(),
-                    role: 'model',
-                    text: `Erro ao salvar o protocolo. Por favor, tente novamente.`,
-                    timestamp: Date.now()
-                  }]);
-                }
-
-                setIsLoading(false);
-                return;
-              }
-            }
-          }
-        }
-
-        // Handle Text
-        if (c.text) {
-          fullText += c.text;
-          if (!hasAddedMsg) {
-            setMessages(prev => [...prev, { id: modelMsgId, role: 'model', text: fullText, timestamp: Date.now() }]);
-            hasAddedMsg = true;
-          } else {
-            setMessages(prev =>
-              prev.map(m => m.id === modelMsgId ? { ...m, text: fullText } : m)
-            );
-          }
+      // Lazy init if not ready
+      if (!chatSessionRef.current) {
+        const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+        if (apiKey) {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+          chatSessionRef.current = model.startChat({});
+        } else {
+          throw new Error("API Key missing");
         }
       }
+
+      const result = await chatSessionRef.current.sendMessage(textToSend);
+      const response = await result.response;
+      const text = response.text();
+
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: text,
+        timestamp: Date.now()
+      }]);
+
     } catch (error) {
       console.error("Chat Error", error);
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: "Erro ao conectar com o servidor neural. Verifique sua conexão.", timestamp: Date.now() }]);
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'model',
+        text: "Erro de conexão neural. Tente novamente em instantes.",
+        timestamp: Date.now()
+      }]);
     } finally {
       setIsLoading(false);
     }
