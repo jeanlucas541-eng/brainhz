@@ -76,11 +76,12 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
           {
             "action": "create_protocol",
             "name": "Nome Curto e Técnico",
+            "description": "Uma frase curta descrevendo o objetivo (ex: 'Induz relaxamento profundo')",
             "base_mode": "FOCUS" (ou GAMMA, STUDY, CREATIVITY, SLEEP, RESTORE),
             "frequency_hz": 14 (número puro),
             "duration_minutes": 20 (número puro),
             "noise_color": "Pink" (ou Brown, White),
-            "explanation": "Explicação científica curta em segunda pessoa."
+            "explanation": "Uma explicação DETALHADA e CIENTÍFICA sobre por que escolheu esta frequência e cor para o usuário. Fale diretamente com ele."
           }
 
           Para qualquer outra pergunta, responda normalmente em texto.
@@ -140,7 +141,7 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
             const newProtocol = await createCustomProtocol({
               userId: user.id,
               name: data.name,
-              description: "Gerado via BrainHz AI",
+              description: data.description || "Protocolo Personalizado via IA",
               baseMode: data.base_mode as SessionMode,
               frequencyHz: data.frequency_hz,
               durationMinutes: data.duration_minutes || 20,
@@ -154,7 +155,7 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
               setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'model',
-                text: `✅ **Protocolo Criado com Sucesso!**\n\n**Nome:** ${data.name}\n**Frequência:** ${data.frequency_hz}Hz (${data.base_mode})\n**Duração:** ${data.duration_minutes} min\n\n${data.explanation}\n\n*Salvei este protocolo na sua aba 'Meus Protocolos'.*`,
+                text: `✅ **Protocolo Criado: ${data.name}**\n\n${data.explanation}\n\n---\n\n**Detalhes Técnicos:**\n*   **Frequência:** ${data.frequency_hz}Hz (${data.base_mode})\n*   **Duração:** ${data.duration_minutes} min\n*   **Ruído:** ${data.noise_color}\n\n*Salvei este protocolo na sua aba 'Meus Protocolos'.*`,
                 timestamp: Date.now()
               }]);
               setIsLoading(false);
