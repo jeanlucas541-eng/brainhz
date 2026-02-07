@@ -58,7 +58,7 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-pro", // Switch to standard model
+        model: "gemini-2.5-flash", // Match AdminPanel
         systemInstruction: `
           Você é o 'BrainHz Specialist', um assistente de IA especialista em neurociência e nos protocolos da plataforma BrainHz.
           
@@ -105,7 +105,7 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
         const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
         if (apiKey) {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
           chatSessionRef.current = model.startChat({});
         } else {
           throw new Error("API Key missing");
