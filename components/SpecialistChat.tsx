@@ -70,15 +70,27 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
           2. Recomendar protocolos baseados no que o usuário diz.
           3. Ser clínico, preciso, porém acessível.
           
-          IMPORTANTE:
-          Se o usuário pedir para "criar" ou "ativar" um protocolo, explique que você pode sugerir a configuração ideal (Hz, Cor, Tempo), mas ele deve clicar manualmente no card por enquanto.
+          IMPORTANTE - CRIAÇÃO DE PROTOCOLO:
+          Se o usuário pedir para CRIAR, PERSONALIZAR ou MONTAR um protocolo, você DEVE responder APENAS com um bloco JSON (sem markdown, sem explicações extras fora do JSON) seguindo este formato:
+          
+          {
+            "action": "create_protocol",
+            "name": "Nome Curto e Técnico",
+            "base_mode": "FOCUS" (ou GAMMA, STUDY, CREATIVITY, SLEEP, RESTORE),
+            "frequency_hz": 14 (número puro),
+            "duration_minutes": 20 (número puro),
+            "noise_color": "Pink" (ou Brown, White),
+            "explanation": "Explicação científica curta em segunda pessoa."
+          }
+
+          Para qualquer outra pergunta, responda normalmente em texto.
         `
       });
 
       chatSessionRef.current = model.startChat({
         history: [],
         generationConfig: {
-          maxOutputTokens: 500,
+          maxOutputTokens: 1000, // Increased for complete answers
         },
       });
     };
@@ -114,7 +126,46 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
 
       const result = await chatSessionRef.current.sendMessage(textToSend);
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
+
+      // Check for JSON Protocol Creation
+      try {
+        // Attempt to find JSON object in response (handling potential markdown wrapping)
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const jsonStr = jsonMatch[0];
+          const data = JSON.parse(jsonStr);
+
+          if (data.action === "create_protocol" && user) {
+            const newProtocol = await createCustomProtocol({
+              userId: user.id,
+              name: data.name,
+              description: "Gerado via BrainHz AI",
+              baseMode: data.base_mode as SessionMode,
+              frequencyHz: data.frequency_hz,
+              durationMinutes: data.duration_minutes || 20,
+              noiseColor: data.noise_color || 'Brown',
+              aiExplanation: data.explanation
+            });
+
+            if (newProtocol) {
+              if (onProtocolCreated) onProtocolCreated(newProtocol);
+
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                role: 'model',
+                text: `✅ **Protocolo Criado com Sucesso!**\n\n**Nome:** ${data.name}\n**Frequência:** ${data.frequency_hz}Hz (${data.base_mode})\n**Duração:** ${data.duration_minutes} min\n\n${data.explanation}\n\n*Salvei este protocolo na sua aba 'Meus Protocolos'.*`,
+                timestamp: Date.now()
+              }]);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Not a JSON response or Parse Error", e);
+        // Continue to show text normally if not a valid JSON action
+      }
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
