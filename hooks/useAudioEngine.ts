@@ -115,8 +115,8 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
     noiseNode.loop = true;
 
     const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(0, t);
-    noiseGain.gain.linearRampToValueAtTime(0.4, t + fadeTime); // Max volume for noise
+    // Simplified Volume (No Ramp to ensure mobile works)
+    noiseGain.gain.value = 0.4;
 
     // Filter noise to make it smoother
     const noiseFilter = ctx.createBiquadFilter();
@@ -144,16 +144,36 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
     osc1.type = 'sine';
     osc2.type = 'sine';
 
-    // Stereo Separation
-    const panner1 = ctx.createStereoPanner();
-    panner1.pan.value = -1; // Left
-    const panner2 = ctx.createStereoPanner();
-    panner2.pan.value = 1; // Right
+    // Stereo Separation (Robust Polyfill for Safari/iOS)
+    let panner1: AudioNode;
+    let panner2: AudioNode;
+
+    if (ctx.createStereoPanner) {
+      // Modern Browsers
+      const p1 = ctx.createStereoPanner();
+      p1.pan.value = -1;
+      panner1 = p1;
+
+      const p2 = ctx.createStereoPanner();
+      p2.pan.value = 1;
+      panner2 = p2;
+    } else {
+      // Old Safari / WebKit Fallback
+      const p1 = ctx.createPanner();
+      p1.panningModel = 'equalpower';
+      p1.setPosition(-1, 0, 0);
+      panner1 = p1;
+
+      const p2 = ctx.createPanner();
+      p2.panningModel = 'equalpower';
+      p2.setPosition(1, 0, 0);
+      panner2 = p2;
+    }
 
     // Tone Envelope
     const toneGain = ctx.createGain();
-    toneGain.gain.setValueAtTime(0, t);
-    toneGain.gain.linearRampToValueAtTime(0.5, t + fadeTime);
+    // Simplified Volume (No Ramp)
+    toneGain.gain.value = 0.5;
 
     // Isochronic Pulse (Modulation) - Optional addition for stronger effect
     const isoGain = ctx.createGain();
