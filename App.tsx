@@ -69,21 +69,27 @@ const App: React.FC = () => {
   const config = SESSION_CONFIGS[activeMode];
 
   // Audio Engine Hook (Always active regardless of view, but logic handles play state)
-  const { initializeAudio } = useAudioEngine(activeMode, config, isPlaying, volume);
-
-
+  const { initializeAudio, audioState } = useAudioEngine(activeMode, config, isPlaying, volume);
 
   // Gamification Loop: Add XP/Minutes while playing
   useEffect(() => {
     let interval: number;
-    if (isPlaying && activeMode !== SessionMode.IDLE) {
+    if (isPlaying && activeMode !== SessionMode.IDLE && audioState === 'running') {
       interval = window.setInterval(() => {
         // Increment playtime every minute
         addTime(1);
       }, 60000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, activeMode]);
+  }, [isPlaying, activeMode, audioState]);
+
+  // Force Resume if Playing but Suspended (iOS Guard)
+  useEffect(() => {
+    if (isPlaying && audioState === 'suspended') {
+      // Try to resume again (might fail without gesture, but worth a shot)
+      initializeAudio();
+    }
+  }, [isPlaying, audioState, initializeAudio]);
 
   // Auto-scroll to top when view changes
   useEffect(() => {
@@ -256,6 +262,25 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neuro-900 text-gray-200 flex flex-col items-center p-4 md:p-8 font-sans selection:bg-neuro-accent selection:text-white relative">
+
+      {/* IOS AUDIO UNLOCK OVERLAY */}
+      {isPlaying && audioState === 'suspended' && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <button
+            onClick={() => initializeAudio()}
+            className="bg-neuro-accent text-white font-bold text-xl px-8 py-6 rounded-2xl shadow-[0_0_50px_rgba(139,92,246,0.5)] animate-bounce flex flex-col items-center gap-4"
+          >
+            <Headphones size={48} />
+            Toque para Ativar o Áudio
+            <span className="text-xs font-normal opacity-80">(Bloqueio de segurança do navegador detectado)</span>
+          </button>
+        </div>
+      )}
+
+      {/* DEBUG INDICATOR (Remove in Prod) */}
+      <div className="fixed bottom-1 left-1 bg-black/50 text-[10px] text-gray-500 font-mono pointer-events-none z-[9999]">
+        Audio: {audioState} | Playing: {isPlaying.toString()}
+      </div>
 
       {/* USERNAME SELECTION MODAL */}
       {needsUsername && user && (

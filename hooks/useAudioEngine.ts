@@ -189,6 +189,8 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
 
   }, [mode, config, getNoiseBuffer, stopSound]);
 
+  const [audioState, setAudioState] = useState<AudioContextState>('suspended');
+
   // --- EXPOSED CONTROL ---
   const initializeAudio = useCallback(async () => {
     // 1. Lazy Initialization (safe for iOS if done here)
@@ -209,28 +211,38 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
       masterGainRef.current = master;
       compressorRef.current = compressor;
       setIsReady(true);
+
+      // Listen for state changes
+      ctx.onstatechange = () => {
+        setAudioState(ctx.state);
+      };
     }
 
     const ctx = audioCtxRef.current;
     if (!ctx) return;
 
+    // 2. iOS Unlock Hack: Play a silent buffer IMMEDIATELY (Do not await anything)
+    // This creates a valid "sound" triggering the audio engine
     try {
-      // 2. Resume context if suspended
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-
-      // 3. iOS Unlock Hack: Play a silent buffer
       const buffer = ctx.createBuffer(1, 1, 22050);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       source.connect(ctx.destination);
       source.start(0);
-
-      console.log('[AudioEngine] Audio Context Unlocked/Resumed');
     } catch (e) {
-      console.error('[AudioEngine] Error resuming audio context:', e);
+      console.error('[AudioEngine] Buffer unlock failed', e);
     }
+
+    // 3. Keep trying to resume standardly
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.error('[AudioEngine] Resume failed', e);
+      }
+    }
+
+    setAudioState(ctx.state);
   }, [volume]);
 
   // --- TRIGGER ---
@@ -242,5 +254,5 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
     }
   }, [isPlaying, startSound, stopSound]);
 
-  return { isReady, initializeAudio };
+  return { isReady, initializeAudio, audioState };
 };
