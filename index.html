@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainHz | Plataforma de Frequência Neural</title>
+  <meta name="description"
+    content="Aumente seu foco, melhore seu sono e potencialize sua criatividade com frequências binaurais e isocrônicas cientificamente validadas." />
+
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://brainhz.app/" />
+  <meta property="og:title" content="BrainHz | Hackeie sua Mente" />
+  <meta property="og:description"
+    content="Descubra o poder das ondas cerebrais. Foco, Sono e Criatividade sob demanda." />
+  <meta property="og:image" content="/LOGO.jpeg" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://brainhz.app/" />
+  <meta property="twitter:title" content="BrainHz | Frequências Neurais" />
+  <meta property="twitter:description" content="Aumente seu foco e criatividade com biohacking auditivo." />
+  <meta property="twitter:image" content="/LOGO.jpeg" />
+  <link rel="icon" type="image/jpeg" href="/LOGO.jpeg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"Space Mono"', 'monospace'],
+            sans: ['"Inter"', 'sans-serif'],
+          },
+          colors: {
+            neuro: {
+              900: '#050505', // Pitch black almost
+              800: '#121214', // Dark gray
+              700: '#202024', // Border gray
+              accent: '#8b5cf6', // A more vibrant Electric Violet/Purple
+              success: '#10b981', // Emerald
+              warning: '#f59e0b', // Amber
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #050505;
+      color: #ffffff;
+    }
+
+    .scanline {
+      background: linear-gradient(to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0) 50%,
+          rgba(139, 92, 246, 0.05) 50%,
+          /* Slight purple tint to scanline */
+          rgba(139, 92, 246, 0.05));
+      background-size: 100% 4px;
+      position: fixed;
+      pointer-events: none;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      opacity: 0.2;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#050505" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BrainHz" />
+  <link rel="apple-touch-icon" href="/LOGO.PNG" />
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <div class="scanline"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

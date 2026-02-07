@@ -1,0 +1,17 @@
+{
+    "name": "BrainHz Neural Frequencies",
+    "short_name": "BrainHz",
+    "description": "Plataforma de Frequências Neurais Binaurais para foco, sono e criatividade.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#050505",
+    "theme_color": "#050505",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/LOGO.PNG",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        }
+    ]
+}
