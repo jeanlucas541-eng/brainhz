@@ -22,44 +22,9 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
   const [isReady, setIsReady] = useState(false);
 
   // --- 1. SETUP AUDIO CONTEXT ---
-  useEffect(() => {
-    const initAudio = () => {
-      // Check if context already exists and is usable
-      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-        setIsReady(true);
-        return;
-      }
-
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContextClass({ latencyHint: 'interactive' });
-
-      // Master Gain (Controlled by User Slider)
-      const master = ctx.createGain();
-      master.gain.value = volume;
-
-      // Compressor (To prevent clipping)
-      const compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -10;
-      compressor.ratio.value = 12;
-
-      // Routing: Compressor -> Master -> Destination
-      compressor.connect(master);
-      master.connect(ctx.destination);
-
-      masterGainRef.current = master;
-      compressorRef.current = compressor;
-      audioCtxRef.current = ctx;
-
-      setIsReady(true);
-      console.log('[AudioEngine] AudioContext initialized, state:', ctx.state);
-    };
-
-    initAudio();
-
-    // NOTE: We intentionally do NOT close the AudioContext on cleanup
-    // because React StrictMode and re-renders would close it prematurely.
-    // The context will be garbage collected when the page unloads.
-  }, []);
+  // Removed eager initialization. 
+  // We now initialize exclusively via user interaction in initializeAudio()
+  // to comply with iOS/Android autoplay policies.
 
   // --- 2. HANDLE VOLUME SLIDER ---
   useEffect(() => {
@@ -226,12 +191,47 @@ export const useAudioEngine = (mode: SessionMode, config: SessionConfig, isPlayi
 
   // --- EXPOSED CONTROL ---
   const initializeAudio = useCallback(async () => {
-    const ctx = audioCtxRef.current;
-    if (ctx && ctx.state === 'suspended') {
-      console.log('[AudioEngine] Manually resuming audio context');
-      await ctx.resume();
+    // 1. Lazy Initialization (safe for iOS if done here)
+    if (!audioCtxRef.current) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtxRef.current = new AudioContextClass({ latencyHint: 'interactive' });
+
+      // Setup nodes for new context
+      const ctx = audioCtxRef.current;
+      const master = ctx.createGain();
+      master.gain.value = volume;
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -10;
+      compressor.ratio.value = 12;
+      compressor.connect(master);
+      master.connect(ctx.destination);
+
+      masterGainRef.current = master;
+      compressorRef.current = compressor;
+      setIsReady(true);
     }
-  }, []);
+
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+
+    try {
+      // 2. Resume context if suspended
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      // 3. iOS Unlock Hack: Play a silent buffer
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+
+      console.log('[AudioEngine] Audio Context Unlocked/Resumed');
+    } catch (e) {
+      console.error('[AudioEngine] Error resuming audio context:', e);
+    }
+  }, [volume]);
 
   // --- TRIGGER ---
   useEffect(() => {
