@@ -114,8 +114,11 @@ const SpecialistChat: React.FC<SpecialistChatProps> = ({ onRecommend, onProtocol
   // Initialize Chat with Context
   useEffect(() => {
     const initChat = () => {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) return;
+      const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+      if (!apiKey) {
+        console.error("API Key não encontrada. Verifique VITE_GOOGLE_API_KEY.");
+        return;
+      }
 
       const ai = new GoogleGenAI({ apiKey });
 

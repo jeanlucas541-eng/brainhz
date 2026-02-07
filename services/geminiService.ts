@@ -2,9 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { SessionConfig } from "../types";
 
 const createClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
   if (!apiKey) {
-    console.error("API_KEY not found in environment variables");
+    console.error("VITE_GOOGLE_API_KEY not found in environment variables");
     return null;
   }
   return new GoogleGenAI({ apiKey });
